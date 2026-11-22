@@ -1,0 +1,86 @@
+#cloud-config
+package_update: true
+packages:
+  - strongswan
+  - nftables
+write_files:
+  - path: /etc/sysctl.d/99-school-router.conf
+    permissions: '0644'
+    content: |
+      net.ipv4.ip_forward=1
+      net.ipv4.conf.all.accept_redirects=0
+      net.ipv4.conf.default.accept_redirects=0
+      net.ipv4.conf.all.send_redirects=0
+      net.ipv4.conf.default.send_redirects=0
+  - path: /etc/ipsec.conf
+    permissions: '0600'
+    content: |
+      config setup
+        uniqueids=yes
+      conn school
+        keyexchange=ikev2
+        authby=psk
+        type=tunnel
+        reqid=1
+        left=%defaultroute
+        leftid=${firewall_public_ip}
+        leftsubnet=10.20.1.0/24,10.20.2.0/24
+        right=${school_vpn_public_ip}
+        rightid=${school_vpn_public_ip}
+        rightsubnet=${school_cidr}
+        ike=aes256-sha256-modp2048!
+        esp=aes256-sha256-modp2048!
+        ikelifetime=8h
+        lifetime=1h
+        dpdaction=restart
+        dpddelay=30s
+        forceencaps=yes
+        auto=start
+  - path: /etc/ipsec.secrets
+    permissions: '0600'
+    content: |
+      ${firewall_public_ip} ${school_vpn_public_ip} : PSK "${vpn_shared_key}"
+  - path: /etc/nftables.conf
+    permissions: '0600'
+    content: |
+      # Dedicated appliance owns this complete ruleset.
+      flush ruleset
+      table inet school_filter {
+        chain input {
+          type filter hook input priority 0; policy drop;
+          ct state established,related accept
+          iifname "lo" accept
+          ip saddr ${school_vpn_public_ip} udp dport { 500, 4500 } accept
+          ip saddr ${school_cidr} ipsec in reqid 1 tcp dport 22 accept
+          ip saddr ${school_cidr} ipsec in reqid 1 icmp type echo-request accept
+          ip saddr 168.63.129.16 accept
+          udp sport 67 udp dport 68 accept
+        }
+        chain forward {
+          type filter hook forward priority 0; policy drop;
+          ct state established,related accept
+          ip saddr ${school_cidr} ip daddr { 10.20.1.0/24, 10.20.2.0/24 } ipsec in reqid 1 accept
+          ip saddr { 10.20.1.0/24, 10.20.2.0/24 } ip daddr ${school_cidr} ipsec out reqid 1 accept
+          ip saddr 10.20.1.0/24 ip daddr 10.20.0.0/16 drop
+          ip saddr 10.20.1.0/24 tcp dport { 80, 443 } accept
+          ip saddr 10.20.1.0/24 udp dport { 53, 123 } accept
+          ip saddr 10.20.1.0/24 tcp dport 53 accept
+        }
+        chain output {
+          type filter hook output priority 0; policy accept;
+        }
+      }
+      table ip school_nat {
+        chain postrouting {
+          type nat hook postrouting priority 100; policy accept;
+          ip daddr ${school_cidr} return
+          ip saddr 10.20.1.0/24 masquerade
+        }
+      }
+runcmd:
+  - sysctl --system
+  - nft -c -f /etc/nftables.conf
+  - nft -f /etc/nftables.conf
+  - systemctl enable nftables
+  - systemctl restart nftables
+  - ipsec restart

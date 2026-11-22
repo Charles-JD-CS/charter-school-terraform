@@ -1,0 +1,16 @@
+Validation performed
+
+Terraform CLI 1.13.5
+AzureRM provider 4.81.0 downloaded and recorded in .terraform.lock.hcl
+terraform fmt -check -recursive: PASSED
+Firewall cloud-init template placeholder substitution and YAML parsing: PASSED
+
+terraform validate: BLOCKED by this execution workspace. The provider could not
+open its required local Unix socket (operation not permitted). This is an
+environment restriction, so provider schema validation remains unverified.
+Run terraform init -backend=false then terraform validate on your computer.
+
+No Azure plan/apply was performed. VM capacity, quotas, cloud-init runtime,
+nftables runtime, the actual VPN tunnel, Windows roles, domain services, public
+application publishing and external Linux outbound access require deployment
+configuration and live checks. Read README.md for scope and instructions.

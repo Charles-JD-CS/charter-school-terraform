@@ -1,0 +1,8 @@
+# Illustrative placeholders only. Required for plan/apply, unnecessary for validate.
+# Copy to terraform.tfvars and replace every placeholder before a live plan.
+subscription_id        = "REPLACE_WITH_YOUR_SUBSCRIPTION_ID"
+windows_admin_password = "REPLACE_WITH_PRIVATE_COMPLEX_PASSWORD"
+linux_ssh_public_key   = "REPLACE_WITH_CONTENTS_OF_YOUR_PUBLIC_SSH_KEY"
+school_cidr            = "192.168.100.0/24" # Example school LAN; confirm with network team.
+school_vpn_public_ip   = "203.0.113.10"     # Documentation address; replace with real peer.
+vpn_shared_key         = "REPLACE_WITH_PRIVATE_KEY_AT_LEAST_32_CHARACTERS"
